@@ -3,7 +3,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Don't create folders that Rojo is managing
 -- Commented out to avoid conflicts with Rojo
---[[ 
+--[[ .
 local shared = Instance.new("Folder")
 shared.Name = "Shared"
 shared.Parent = ReplicatedStorage
