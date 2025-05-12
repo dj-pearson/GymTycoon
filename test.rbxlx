@@ -1,0 +1,3288 @@
+<roblox version="4">
+  <Item class="ReplicatedStorage" referent="0">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="1">
+      <Properties>
+        <string name="Name">shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="2">
+        <Properties>
+          <string name="Name">Constants</string>
+          <string name="Source"><![CDATA[local Constants = {}
+
+-- Game Settings
+Constants.GRID_SIZE = 4
+Constants.INTERACTION_RANGE = 10
+Constants.AUTO_SAVE_INTERVAL = 300 -- 5 minutes
+
+-- Floor Settings
+Constants.FLOOR_BOUNDS = {
+    [1] = {
+        min = Vector3.new(-50, 0, -50),
+        max = Vector3.new(50, 0, 50)
+    },
+    [2] = {
+        min = Vector3.new(-50, 10, -50),
+        max = Vector3.new(50, 10, 50)
+    },
+    [3] = {
+        min = Vector3.new(-50, 20, -50),
+        max = Vector3.new(50, 20, 50)
+    }
+}
+
+-- Equipment Settings
+Constants.EQUIPMENT = {
+    TREADMILL = {
+        name = "Treadmill",
+        category = "Cardio",
+        baseCost = 1000,
+        maintenanceCost = 100,
+        cleaningCost = 50,
+        durabilityDecayRate = 0.1, -- per minute
+        cleanlinessDecayRate = 0.2, -- per minute
+        usageTime = 300, -- 5 minutes
+        satisfactionRating = 0.8,
+        xpReward = 10
+    },
+    WEIGHT_BENCH = {
+        name = "Weight Bench",
+        category = "Strength",
+        baseCost = 800,
+        maintenanceCost = 80,
+        cleaningCost = 40,
+        durabilityDecayRate = 0.15,
+        cleanlinessDecayRate = 0.25,
+        usageTime = 240, -- 4 minutes
+        satisfactionRating = 0.7,
+        xpReward = 8
+    },
+    ELLIPTICAL = {
+        name = "Elliptical",
+        category = "Cardio",
+        baseCost = 1200,
+        maintenanceCost = 120,
+        cleaningCost = 60,
+        durabilityDecayRate = 0.08,
+        cleanlinessDecayRate = 0.15,
+        usageTime = 360, -- 6 minutes
+        satisfactionRating = 0.9,
+        xpReward = 12
+    }
+}
+
+-- Staff Settings
+Constants.STAFF = {
+    MAINTENANCE = {
+        name = "Maintenance Staff",
+        specialization = "MAINTENANCE",
+        hireCost = 2000,
+        salary = 100, -- per day
+        maxEnergy = 100,
+        energyRegenRate = 5, -- per minute
+        taskEfficiency = 1.0,
+        experienceGain = 0.1 -- per task
+    },
+    CLEANING = {
+        name = "Cleaning Staff",
+        specialization = "CLEANING",
+        hireCost = 1500,
+        salary = 80, -- per day
+        maxEnergy = 100,
+        energyRegenRate = 5, -- per minute
+        taskEfficiency = 1.0,
+        experienceGain = 0.1 -- per task
+    },
+    TRAINER = {
+        name = "Personal Trainer",
+        specialization = "TRAINING",
+        hireCost = 3000,
+        salary = 150, -- per day
+        maxEnergy = 100,
+        energyRegenRate = 4, -- per minute
+        taskEfficiency = 1.0,
+        experienceGain = 0.15, -- per task
+        memberSatisfactionBoost = 0.2, -- 20% boost to member satisfaction
+        trainingDuration = 1800, -- 30 minutes
+        energyCost = 30 -- per training session
+    }
+}
+
+-- Membership Types
+Constants.MEMBERSHIP = {
+    BASIC = {
+        name = "Basic",
+        monthlyFee = 20,
+        satisfactionThreshold = 0.5,
+        equipmentAccess = {"TREADMILL", "WEIGHT_BENCH"}
+    },
+    PREMIUM = {
+        name = "Premium",
+        monthlyFee = 40,
+        satisfactionThreshold = 0.7,
+        equipmentAccess = {"TREADMILL", "WEIGHT_BENCH", "ELLIPTICAL"}
+    },
+    VIP = {
+        name = "VIP",
+        monthlyFee = 60,
+        satisfactionThreshold = 0.9,
+        equipmentAccess = {"TREADMILL", "WEIGHT_BENCH", "ELLIPTICAL"}
+    }
+}
+
+-- Challenge Types
+Constants.CHALLENGE = {
+    DAILY = {
+        name = "Daily",
+        rewardMultiplier = 1.0,
+        maxActive = 3
+    },
+    WEEKLY = {
+        name = "Weekly",
+        rewardMultiplier = 2.0,
+        maxActive = 1
+    },
+    SPECIAL = {
+        name = "Special",
+        rewardMultiplier = 3.0,
+        maxActive = 1
+    }
+}
+
+-- Progression Settings
+Constants.PROGRESSION = {
+    FLOOR_UNLOCK = {
+        [2] = {
+            tilesRequired = 20,
+            membersRequired = 10,
+            playerLevel = 5,
+            cost = 5000,
+            rewards = {
+                xp = 100,
+                money = 1000
+            }
+        },
+        [3] = {
+            tilesRequired = 40,
+            membersRequired = 25,
+            playerLevel = 10,
+            cost = 10000,
+            rewards = {
+                xp = 200,
+                money = 2000
+            }
+        }
+    },
+    LEVEL_XP = {
+        base = 100,
+        multiplier = 1.5
+    }
+}
+
+return Constants ]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">ModuleResolver</string>
+          <string name="Source"><![CDATA[-- ModuleResolver.luau
+-- Utility module for resolving module dependencies in both local and cloud environments
+
+local ModuleResolver = {}
+
+-- Try to get the resolver from init script, otherwise define our own
+local function getResolver()
+    if script.Parent and script.Parent:FindFirstChild("resolveModule") then
+        return script.Parent.resolveModule
+    end
+    
+    -- Define our own resolver
+    return function(moduleName, fromModule)
+        local sourceModule = fromModule or script.Parent
+        local success, result
+        
+        -- Try direct requiring from parent
+        success, result = pcall(function()
+            return require(sourceModule:FindFirstChild(moduleName))
+        end)
+        
+        if success and result then
+            return result
+        end
+        
+        -- Try with .server suffix for server scripts
+        success, result = pcall(function()
+            return require(sourceModule:FindFirstChild(moduleName .. ".server"))
+        end)
+        
+        if success and result then
+            return result
+        end
+        
+        -- Try with .client suffix for client scripts
+        success, result = pcall(function()
+            return require(sourceModule:FindFirstChild(moduleName .. ".client"))
+        end)
+        
+        if success and result then
+            return result
+        end
+        
+        -- Try finding in parent's parent
+        if sourceModule.Parent then
+            success, result = pcall(function()
+                return require(sourceModule.Parent:FindFirstChild(moduleName))
+            end)
+            
+            if success and result then
+                return result
+            end
+        end
+        
+        -- Try direct string require (works in some cloud environments)
+        success, result = pcall(function()
+            return require(moduleName)
+        end)
+        
+        if success and result then
+            return result
+        end
+        
+        -- Create a dummy module to prevent errors
+        warn("ModuleResolver: Failed to resolve module: " .. moduleName)
+        return {
+            initialize = function() 
+                warn("Using dummy implementation of " .. moduleName .. ".initialize()") 
+                return true 
+            end,
+            createUI = function() 
+                warn("Using dummy implementation of " .. moduleName .. ".createUI()") 
+                return Instance.new("Frame") 
+            end
+        }
+    end
+end
+
+ModuleResolver.resolveModule = getResolver()
+
+return ModuleResolver ]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="4">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="ModuleScript" referent="5">
+      <Properties>
+        <string name="Name">server</string>
+        <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+-- Don't create folders that Rojo is managing
+-- Commented out to avoid conflicts with Rojo
+--[[ .
+local shared = Instance.new("Folder")
+shared.Name = "Shared"
+shared.Parent = ReplicatedStorage
+
+local core = Instance.new("Folder")
+core.Name = "Core"
+core.Parent = ServerScriptService
+--]]
+
+-- Load and register core systems
+local CoreRegistry = require(script.Parent.server.Core.CoreRegistry)
+
+-- Load all core systems
+local systems = {
+    DataManager = require(script.Parent.server.Core.DataManager),    TileSystem = require(script.Parent.server.Core.TileSystem),
+    MembershipSystem = require(script.Parent.server.Core.MembershipSystem),
+    EquipmentSystem = require(script.Parent.server.Core.EquipmentSystem),
+    ChallengeSystem = require(script.Parent.server.Core.ChallengeSystem),
+    ProgressionSystem = require(script.Parent.server.Core.ProgressionSystem)
+}
+
+-- Register all systems
+for systemName, system in pairs(systems) do
+    CoreRegistry:Register(systemName, system)
+end
+
+-- Initialize all systems
+CoreRegistry:Initialize()
+
+-- Handle player joining
+game.Players.PlayerAdded:Connect(function(player)
+    -- Load player data
+    local dataManager = CoreRegistry:GetSystem("DataManager")
+    if dataManager then
+        dataManager:LoadPlayerData(player)
+    end
+end)
+
+-- Handle player leaving
+game.Players.PlayerRemoving:Connect(function(player)
+    -- Save player data
+    local dataManager = CoreRegistry:GetSystem("DataManager")
+    if dataManager then
+        dataManager:SavePlayerData(player)
+    end
+end) ]]></string>
+      </Properties>
+      <Item class="Folder" referent="6">
+        <Properties>
+          <string name="Name">Core</string>
+        </Properties>
+        <Item class="ModuleScript" referent="7">
+          <Properties>
+            <string name="Name">ChallengeSystem</string>
+            <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local ChallengeSystem = {}
+ChallengeSystem.__index = ChallengeSystem
+
+-- Private variables
+local activeChallenges = {}
+local challengeTemplates = {}
+
+function ChallengeSystem.new()
+    local self = setmetatable({}, ChallengeSystem)
+    return self
+end
+
+function ChallengeSystem:Initialize()
+    -- Load challenge templates
+    self:LoadChallengeTemplates()
+    
+    -- Start challenge update loop
+    task.spawn(function()
+        while true do
+            task.wait(60) -- Check challenges every minute
+            self:UpdateChallenges()
+        end
+    end)
+    
+    print("ChallengeSystem initialized")
+end
+
+function ChallengeSystem:LoadChallengeTemplates()
+    -- Daily challenges
+    challengeTemplates[Constants.CHALLENGE_TYPES.DAILY] = {
+        {
+            id = "clean_equipment",
+            name = "Clean Sweep",
+            description = "Clean 5 pieces of equipment",
+            requirement = 5,
+            reward = {
+                money = 100,
+                xp = 50
+            },
+            progress = 0,
+            type = "equipment_cleaned"
+        },
+        {
+            id = "earn_money",
+            name = "Money Maker",
+            description = "Earn 500 money from memberships",
+            requirement = 500,
+            reward = {
+                money = 200,
+                xp = 100
+            },
+            progress = 0,
+            type = "money_earned"
+        },
+        {
+            id = "place_equipment",
+            name = "Expansion",
+            description = "Place 3 new pieces of equipment",
+            requirement = 3,
+            reward = {
+                money = 150,
+                xp = 75
+            },
+            progress = 0,
+            type = "equipment_placed"
+        }
+    }
+    
+    -- Weekly challenges
+    challengeTemplates[Constants.CHALLENGE_TYPES.WEEKLY] = {
+        {
+            id = "reach_members",
+            name = "Popular Gym",
+            description = "Reach 100 total members",
+            requirement = 100,
+            reward = {
+                money = 1000,
+                xp = 500
+            },
+            progress = 0,
+            type = "membership_count"
+        },
+        {
+            id = "maintain_equipment",
+            name = "Well Maintained",
+            description = "Maintain 10 pieces of equipment",
+            requirement = 10,
+            reward = {
+                money = 800,
+                xp = 400
+            },
+            progress = 0,
+            type = "equipment_maintained"
+        }
+    }
+    
+    -- Achievement challenges
+    challengeTemplates[Constants.CHALLENGE_TYPES.ACHIEVEMENT] = {
+        {
+            id = "first_floor",
+            name = "First Floor Complete",
+            description = "Place equipment on every tile of the first floor",
+            requirement = 1,
+            reward = {
+                money = 5000,
+                xp = 2000
+            },
+            progress = 0,
+            type = "floor_complete"
+        },
+        {
+            id = "millionaire",
+            name = "Millionaire",
+            description = "Accumulate 1,000,000 money",
+            requirement = 1000000,
+            reward = {
+                money = 10000,
+                xp = 5000
+            },
+            progress = 0,
+            type = "total_money"
+        }
+    }
+end
+
+function ChallengeSystem:GenerateDailyChallenges(player)
+    if not activeChallenges[player.UserId] then
+        activeChallenges[player.UserId] = {}
+    end
+    
+    -- Clear expired daily challenges
+    local currentTime = os.time()
+    for i = #activeChallenges[player.UserId], 1, -1 do
+        local challenge = activeChallenges[player.UserId][i]
+        if challenge.type == Constants.CHALLENGE_TYPES.DAILY and 
+           currentTime - challenge.startTime > 86400 then -- 24 hours
+            table.remove(activeChallenges[player.UserId], i)
+        end
+    end
+    
+    -- Generate new daily challenges
+    local dailyTemplates = challengeTemplates[Constants.CHALLENGE_TYPES.DAILY]
+    local selectedChallenges = {}
+    
+    -- Select 3 random daily challenges
+    for i = 1, 3 do
+        local template = dailyTemplates[math.random(1, #dailyTemplates)]
+        local challenge = table.clone(template)
+        challenge.startTime = currentTime
+        table.insert(selectedChallenges, challenge)
+    end
+    
+    -- Add to active challenges
+    for _, challenge in ipairs(selectedChallenges) do
+        table.insert(activeChallenges[player.UserId], challenge)
+    end
+    
+    -- Save to player data
+    local dataManager = self:GetSystem("DataManager")
+    dataManager:UpdateValue(player, "challenges", activeChallenges[player.UserId])
+end
+
+function ChallengeSystem:UpdateChallengeProgress(player, challengeType, amount)
+    if not activeChallenges[player.UserId] then return end
+    
+    local updated = false
+    for _, challenge in ipairs(activeChallenges[player.UserId]) do
+        if challenge.type == challengeType then
+            challenge.progress = challenge.progress + amount
+            updated = true
+            
+            -- Check if challenge is complete
+            if challenge.progress >= challenge.requirement then
+                self:CompleteChallenge(player, challenge)
+            end
+        end
+    end
+    
+    if updated then
+        -- Save progress
+        local dataManager = self:GetSystem("DataManager")
+        dataManager:UpdateValue(player, "challenges", activeChallenges[player.UserId])
+    end
+end
+
+function ChallengeSystem:CompleteChallenge(player, challenge)
+    -- Award rewards
+    local dataManager = self:GetSystem("DataManager")
+    
+    if challenge.reward.money then
+        dataManager:IncrementValue(player, "money", challenge.reward.money)
+    end
+    
+    if challenge.reward.xp then
+        self:AwardXP(player, challenge.reward.xp)
+    end
+    
+    -- Mark challenge as complete
+    challenge.completed = true
+    challenge.completedAt = os.time()
+    
+    -- TODO: Implement challenge completion notification
+end
+
+function ChallengeSystem:UpdateChallenges()
+    for userId, challenges in pairs(activeChallenges) do
+        local player = game.Players:GetPlayerByUserId(userId)
+        if player then
+            -- Check for expired challenges
+            local currentTime = os.time()
+            for i = #challenges, 1, -1 do
+                local challenge = challenges[i]
+                if challenge.type == Constants.CHALLENGE_TYPES.DAILY and 
+                   currentTime - challenge.startTime > 86400 then -- 24 hours
+                    table.remove(challenges, i)
+                end
+            end
+            
+            -- Generate new daily challenges if needed
+            local hasDailyChallenges = false
+            for _, challenge in ipairs(challenges) do
+                if challenge.type == Constants.CHALLENGE_TYPES.DAILY then
+                    hasDailyChallenges = true
+                    break
+                end
+            end
+            
+            if not hasDailyChallenges then
+                self:GenerateDailyChallenges(player)
+            end
+        end
+    end
+end
+
+function ChallengeSystem:AwardXP(player, amount)
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(player)
+    
+    if playerData then
+        -- Calculate level up
+        local currentXP = playerData.experience + amount
+        local baseLevelUp = Constants.EXPERIENCE.BASE_LEVEL_UP
+        local levelMultiplier = Constants.EXPERIENCE.LEVEL_MULTIPLIER
+        
+        while currentXP >= baseLevelUp do
+            currentXP = currentXP - baseLevelUp
+            playerData.level = playerData.level + 1
+            baseLevelUp = baseLevelUp * levelMultiplier
+            
+            -- TODO: Implement level up rewards
+        end
+        
+        dataManager:UpdateValue(player, "experience", currentXP)
+        dataManager:UpdateValue(player, "level", playerData.level)
+    end
+end
+
+function ChallengeSystem:GetSystem(systemName)
+    local coreRegistry = require(script.Parent.CoreRegistry)
+    return coreRegistry:GetSystem(systemName)
+end
+
+return ChallengeSystem ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="8">
+          <Properties>
+            <string name="Name">CoreRegistry</string>
+            <string name="Source"><![CDATA[local CoreRegistry = {}
+local systems = {}
+
+function CoreRegistry:Register(systemName, system)
+    if systems[systemName] then
+        warn("System", systemName, "is already registered!")
+        return false
+    end
+    
+    systems[systemName] = system
+    return true
+end
+
+function CoreRegistry:GetSystem(systemName)
+    if not systems[systemName] then
+        warn("System", systemName, "is not registered!")
+        return nil
+    end
+    
+    return systems[systemName]
+end
+
+function CoreRegistry:Initialize()
+    -- Initialize all registered systems in the correct order
+    local initOrder = {
+        "DataManager",
+        "TileSystem",
+        "MembershipSystem",
+        "EquipmentSystem",
+        "ChallengeSystem",
+        "ProgressionSystem"
+    }
+    
+    for _, systemName in ipairs(initOrder) do
+        local system = systems[systemName]
+        if system and system.Initialize then
+            system:Initialize()
+        end
+    end
+end
+
+return CoreRegistry ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="9">
+          <Properties>
+            <string name="Name">DataManager</string>
+            <string name="Source"><![CDATA[local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+
+local DataManager = {}
+DataManager.__index = DataManager
+
+-- Constants
+local DATA_STORE_NAME = "GymTycoonData_v1"
+local DEFAULT_DATA = {
+    money = 1000,
+    level = 1,
+    experience = 0,
+    ownedTiles = {},
+    equipment = {},
+    membershipCount = 0,
+    unlockedFloors = {1},
+    challenges = {},
+    lastSave = 0
+}
+
+-- Private variables
+local dataStore = DataStoreService:GetDataStore(DATA_STORE_NAME)
+local playerData = {}
+
+function DataManager.new()
+    local self = setmetatable({}, DataManager)
+    return self
+end
+
+function DataManager:Initialize()
+    -- Set up any necessary initialization
+    print("DataManager initialized")
+end
+
+function DataManager:LoadPlayerData(player)
+    local success, data = pcall(function()
+        return dataStore:GetAsync(player.UserId)
+    end)
+    
+    if success and data then
+        playerData[player.UserId] = data
+    else
+        -- Use default data if loading fails
+        playerData[player.UserId] = table.clone(DEFAULT_DATA)
+    end
+    
+    -- Set up auto-save
+    task.spawn(function()
+        while player and player.Parent do
+            task.wait(300) -- Auto-save every 5 minutes
+            self:SavePlayerData(player)
+        end
+    end)
+    
+    return playerData[player.UserId]
+end
+
+function DataManager:SavePlayerData(player)
+    if not playerData[player.UserId] then return end
+    
+    local success, err = pcall(function()
+        dataStore:SetAsync(player.UserId, playerData[player.UserId])
+    end)
+    
+    if not success then
+        warn("Failed to save data for player", player.Name, ":", err)
+    end
+end
+
+function DataManager:GetPlayerData(player)
+    return playerData[player.UserId]
+end
+
+function DataManager:UpdateValue(player, key, value)
+    if not playerData[player.UserId] then return end
+    
+    playerData[player.UserId][key] = value
+    playerData[player.UserId].lastSave = os.time()
+end
+
+function DataManager:IncrementValue(player, key, amount)
+    if not playerData[player.UserId] then return end
+    
+    playerData[player.UserId][key] = (playerData[player.UserId][key] or 0) + amount
+    playerData[player.UserId].lastSave = os.time()
+end
+
+return DataManager ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="10">
+          <Properties>
+            <string name="Name">EquipmentSystem</string>
+            <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local EquipmentSystem = {}
+EquipmentSystem.__index = EquipmentSystem
+
+-- Private variables
+local equipmentData = {}
+local equipmentTemplates = {}
+
+function EquipmentSystem.new()
+    local self = setmetatable({}, EquipmentSystem)
+    return self
+end
+
+function EquipmentSystem:Initialize()
+    -- Load equipment templates
+    self:LoadEquipmentTemplates()
+    
+    -- Start maintenance check loop
+    task.spawn(function()
+        while true do
+            task.wait(60) -- Check equipment every minute
+            self:CheckEquipmentStatus()
+        end
+    end)
+    
+    print("EquipmentSystem initialized")
+end
+
+function EquipmentSystem:LoadEquipmentTemplates()
+    -- Define equipment templates with their attributes
+    equipmentTemplates = {
+        TREADMILL = {
+            name = "Treadmill",
+            category = "Cardio",
+            baseCost = 1000,
+            maintenanceCost = 100,
+            durability = 100,
+            cleanliness = 100,
+            popularity = 0.8,
+            usageTime = 30, -- seconds
+            satisfaction = 0.7,
+            maintenanceInterval = 300, -- 5 minutes
+            decayRate = 0.1, -- per minute
+            maxUsers = 1
+        },
+        WEIGHT_BENCH = {
+            name = "Weight Bench",
+            category = "Strength",
+            baseCost = 800,
+            maintenanceCost = 80,
+            durability = 100,
+            cleanliness = 100,
+            popularity = 0.6,
+            usageTime = 45,
+            satisfaction = 0.6,
+            maintenanceInterval = 400,
+            decayRate = 0.08,
+            maxUsers = 1
+        },
+        ELLIPTICAL = {
+            name = "Elliptical",
+            category = "Cardio",
+            baseCost = 1200,
+            maintenanceCost = 120,
+            durability = 100,
+            cleanliness = 100,
+            popularity = 0.7,
+            usageTime = 35,
+            satisfaction = 0.75,
+            maintenanceInterval = 350,
+            decayRate = 0.09,
+            maxUsers = 1
+        }
+    }
+end
+
+function EquipmentSystem:CreateEquipment(equipmentType, position, floor)
+    local template = equipmentTemplates[equipmentType]
+    if not template then return nil end
+    
+    -- Create equipment instance
+    local equipment = {
+        id = #equipmentData + 1,
+        type = equipmentType,
+        position = position,
+        floor = floor,
+        attributes = {
+            durability = template.durability,
+            cleanliness = template.cleanliness,
+            popularity = template.popularity,
+            lastMaintenance = os.time(),
+            lastCleaning = os.time(),
+            currentUsers = 0
+        },
+        template = template
+    }
+    
+    -- Store equipment data
+    equipmentData[equipment.id] = equipment
+    
+    -- Create physical equipment in workspace
+    self:CreatePhysicalEquipment(equipment)
+    
+    return equipment
+end
+
+function EquipmentSystem:CreatePhysicalEquipment(equipment)
+    local equipmentFolder = workspace:FindFirstChild("Equipment")
+    if not equipmentFolder then
+        equipmentFolder = Instance.new("Folder")
+        equipmentFolder.Name = "Equipment"
+        equipmentFolder.Parent = workspace
+    end
+    
+    -- Create equipment model
+    local model = Instance.new("Model")
+    model.Name = string.format("%s_%d", equipment.type, equipment.id)
+    
+    -- Create base part
+    local base = Instance.new("Part")
+    base.Name = "Base"
+    base.Size = Vector3.new(4, 0.5, 4)
+    base.Position = equipment.position
+    base.Anchored = true
+    base.CanCollide = true
+    base.Parent = model
+    
+    -- Create equipment part
+    local equipmentPart = Instance.new("Part")
+    equipmentPart.Name = "Equipment"
+    equipmentPart.Size = Vector3.new(3, 2, 3)
+    equipmentPart.Position = equipment.position + Vector3.new(0, 1.25, 0)
+    equipmentPart.Anchored = true
+    equipmentPart.CanCollide = true
+    equipmentPart.Parent = model
+    
+    -- Add status indicators
+    local durabilityIndicator = Instance.new("BillboardGui")
+    durabilityIndicator.Name = "DurabilityIndicator"
+    durabilityIndicator.Size = UDim2.new(0, 50, 0, 10)
+    durabilityIndicator.StudsOffset = Vector3.new(0, 2.5, 0)
+    durabilityIndicator.Parent = equipmentPart
+    
+    local durabilityBar = Instance.new("Frame")
+    durabilityBar.Name = "DurabilityBar"
+    durabilityBar.Size = UDim2.new(1, 0, 1, 0)
+    durabilityBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    durabilityBar.Parent = durabilityIndicator
+    
+    -- Add to workspace
+    model.Parent = equipmentFolder
+    
+    -- Store reference
+    equipment.model = model
+end
+
+function EquipmentSystem:CheckEquipmentStatus()
+    local currentTime = os.time()
+    
+    for id, equipment in pairs(equipmentData) do
+        -- Update durability and cleanliness
+        local timeSinceMaintenance = currentTime - equipment.attributes.lastMaintenance
+        local timeSinceCleaning = currentTime - equipment.attributes.lastCleaning
+        
+        -- Calculate decay
+        local maintenanceDecay = (timeSinceMaintenance / 60) * equipment.template.decayRate
+        local cleaningDecay = (timeSinceCleaning / 60) * (equipment.template.decayRate * 0.5)
+        
+        -- Apply decay
+        equipment.attributes.durability = math.max(0, equipment.attributes.durability - maintenanceDecay)
+        equipment.attributes.cleanliness = math.max(0, equipment.attributes.cleanliness - cleaningDecay)
+        
+        -- Update visual indicators
+        self:UpdateEquipmentVisuals(equipment)
+    end
+end
+
+function EquipmentSystem:UpdateEquipmentVisuals(equipment)
+    if not equipment.model then return end
+    
+    local durabilityBar = equipment.model.Equipment.DurabilityIndicator.DurabilityBar
+    if durabilityBar then
+        -- Update durability bar color and size
+        local durability = equipment.attributes.durability
+        durabilityBar.Size = UDim2.new(durability / 100, 0, 1, 0)
+        
+        -- Update color based on durability
+        if durability > 70 then
+            durabilityBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        elseif durability > 30 then
+            durabilityBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+        else
+            durabilityBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        end
+    end
+end
+
+function EquipmentSystem:MaintainEquipment(equipmentId)
+    local equipment = equipmentData[equipmentId]
+    if not equipment then return false end
+    
+    -- Check if maintenance is needed
+    local currentTime = os.time()
+    local timeSinceMaintenance = currentTime - equipment.attributes.lastMaintenance
+    
+    if timeSinceMaintenance < equipment.template.maintenanceInterval then
+        return false, "Equipment doesn't need maintenance yet"
+    end
+    
+    -- Perform maintenance
+    equipment.attributes.durability = 100
+    equipment.attributes.lastMaintenance = currentTime
+    
+    -- Update visuals
+    self:UpdateEquipmentVisuals(equipment)
+    
+    return true, "Equipment maintained successfully"
+end
+
+function EquipmentSystem:CleanEquipment(equipmentId)
+    local equipment = equipmentData[equipmentId]
+    if not equipment then return false end
+    
+    -- Perform cleaning
+    equipment.attributes.cleanliness = 100
+    equipment.attributes.lastCleaning = os.time()
+    
+    -- Update visuals
+    self:UpdateEquipmentVisuals(equipment)
+    
+    return true, "Equipment cleaned successfully"
+end
+
+function EquipmentSystem:UseEquipment(equipmentId, userId)
+    local equipment = equipmentData[equipmentId]
+    if not equipment then return false end
+    
+    -- Check if equipment is available
+    if equipment.attributes.currentUsers >= equipment.template.maxUsers then
+        return false, "Equipment is currently in use"
+    end
+    
+    -- Check if equipment is in good condition
+    if equipment.attributes.durability < 20 or equipment.attributes.cleanliness < 20 then
+        return false, "Equipment needs maintenance or cleaning"
+    end
+    
+    -- Start usage
+    equipment.attributes.currentUsers = equipment.attributes.currentUsers + 1
+    
+    -- Schedule usage completion
+    task.delay(equipment.template.usageTime, function()
+        if equipmentData[equipmentId] then
+            equipment.attributes.currentUsers = equipment.attributes.currentUsers - 1
+        end
+    end)
+    
+    return true, "Started using equipment"
+end
+
+function EquipmentSystem:GetEquipmentData(equipmentId)
+    return equipmentData[equipmentId]
+end
+
+function EquipmentSystem:GetEquipmentTemplate(equipmentType)
+    return equipmentTemplates[equipmentType]
+end
+
+function EquipmentSystem:GetSystem(systemName)
+    local coreRegistry = require(script.Parent.CoreRegistry)
+    return coreRegistry:GetSystem(systemName)
+end
+
+return EquipmentSystem ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
+            <string name="Name">MembershipSystem</string>
+            <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local MembershipSystem = {}
+MembershipSystem.__index = MembershipSystem
+
+-- Private variables
+local memberData = {}
+local activeMembers = {}
+
+function MembershipSystem.new()
+    local self = setmetatable({}, MembershipSystem)
+    return self
+end
+
+function MembershipSystem:Initialize()
+    -- Start member generation loop
+    task.spawn(function()
+        while true do
+            task.wait(60) -- Check every minute
+            self:UpdateMembers()
+        end
+    end)
+    
+    print("MembershipSystem initialized")
+end
+
+function MembershipSystem:GenerateMember(player)
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(player)
+    if not playerData then return nil end
+    
+    -- Calculate gym attractiveness based on equipment and cleanliness
+    local attractiveness = self:CalculateGymAttractiveness(player)
+    
+    -- Determine membership type based on attractiveness
+    local membershipType = self:DetermineMembershipType(attractiveness)
+    
+    -- Create member instance
+    local member = {
+        id = #memberData + 1,
+        playerId = player.UserId,
+        membershipType = membershipType,
+        joinDate = os.time(),
+        lastVisit = os.time(),
+        satisfaction = 1.0,
+        loyalty = 0.0,
+        preferences = self:GeneratePreferences(),
+        currentActivity = nil,
+        equipmentUsage = {}
+    }
+    
+    -- Store member data
+    memberData[member.id] = member
+    activeMembers[player.UserId] = activeMembers[player.UserId] or {}
+    table.insert(activeMembers[player.UserId], member.id)
+    
+    -- Update player data
+    playerData.memberCount = (playerData.memberCount or 0) + 1
+    playerData.members = playerData.members or {}
+    table.insert(playerData.members, member.id)
+    
+    -- Create physical member in workspace
+    self:CreatePhysicalMember(member)
+    
+    return member
+end
+
+function MembershipSystem:CalculateGymAttractiveness(player)
+    local equipmentSystem = self:GetSystem("EquipmentSystem")
+    local tileSystem = self:GetSystem("TileSystem")
+    local attractiveness = 0.5 -- Base attractiveness
+    
+    -- Check equipment variety and condition
+    local equipment = equipmentSystem:GetAllEquipment()
+    if equipment then
+        local totalEquipment = 0
+        local totalCondition = 0
+        
+        for _, eq in pairs(equipment) do
+            totalEquipment = totalEquipment + 1
+            totalCondition = totalCondition + (eq.attributes.durability + eq.attributes.cleanliness) / 2
+        end
+        
+        if totalEquipment > 0 then
+            attractiveness = attractiveness + (totalCondition / totalEquipment) * 0.3
+        end
+    end
+    
+    -- Check floor space and organization
+    local tiles = tileSystem:GetAllTiles()
+    if tiles then
+        local totalTiles = 0
+        local organizedTiles = 0
+        
+        for _, tile in pairs(tiles) do
+            totalTiles = totalTiles + 1
+            if tile.equipment then
+                organizedTiles = organizedTiles + 1
+            end
+        end
+        
+        if totalTiles > 0 then
+            attractiveness = attractiveness + (organizedTiles / totalTiles) * 0.2
+        end
+    end
+    
+    return math.min(1.0, attractiveness)
+end
+
+function MembershipSystem:DetermineMembershipType(attractiveness)
+    local membershipTypes = Constants.MEMBERSHIP
+    local random = math.random()
+    
+    if attractiveness > 0.8 and random > 0.7 then
+        return "VIP"
+    elseif attractiveness > 0.6 and random > 0.5 then
+        return "PREMIUM"
+    else
+        return "BASIC"
+    end
+end
+
+function MembershipSystem:GeneratePreferences()
+    return {
+        preferredEquipment = self:GetRandomEquipmentPreferences(),
+        preferredTime = math.random(1, 24), -- Hour of day
+        workoutDuration = math.random(30, 120), -- Minutes
+        frequency = math.random(2, 6) -- Times per week
+    }
+end
+
+function MembershipSystem:GetRandomEquipmentPreferences()
+    local equipmentTypes = {"TREADMILL", "WEIGHT_BENCH", "ELLIPTICAL"}
+    local preferences = {}
+    local count = math.random(1, #equipmentTypes)
+    
+    for i = 1, count do
+        local index = math.random(1, #equipmentTypes)
+        table.insert(preferences, equipmentTypes[index])
+        table.remove(equipmentTypes, index)
+    end
+    
+    return preferences
+end
+
+function MembershipSystem:CreatePhysicalMember(member)
+    local membersFolder = workspace:FindFirstChild("Members")
+    if not membersFolder then
+        membersFolder = Instance.new("Folder")
+        membersFolder.Name = "Members"
+        membersFolder.Parent = workspace
+    end
+    
+    -- Create member model
+    local model = Instance.new("Model")
+    model.Name = string.format("Member_%d", member.id)
+    
+    -- Create character
+    local character = Instance.new("Part")
+    character.Name = "Character"
+    character.Size = Vector3.new(1, 4, 1)
+    character.Anchored = true
+    character.CanCollide = true
+    character.Parent = model
+    
+    -- Add membership indicator
+    local indicator = Instance.new("BillboardGui")
+    indicator.Name = "MembershipIndicator"
+    indicator.Size = UDim2.new(0, 50, 0, 10)
+    indicator.StudsOffset = Vector3.new(0, 2.5, 0)
+    indicator.Parent = character
+    
+    local bar = Instance.new("Frame")
+    bar.Name = "SatisfactionBar"
+    bar.Size = UDim2.new(1, 0, 1, 0)
+    bar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    bar.Parent = indicator
+    
+    -- Add to workspace
+    model.Parent = membersFolder
+    
+    -- Store reference
+    member.model = model
+end
+
+function MembershipSystem:UpdateMembers()
+    local currentTime = os.time()
+    
+    for playerId, memberIds in pairs(activeMembers) do
+        for _, memberId in ipairs(memberIds) do
+            local member = memberData[memberId]
+            if member then
+                -- Update member satisfaction
+                self:UpdateMemberSatisfaction(member)
+                
+                -- Handle member activities
+                if not member.currentActivity then
+                    self:AssignMemberActivity(member)
+                else
+                    self:UpdateMemberActivity(member)
+                end
+                
+                -- Check for member departure
+                if self:ShouldMemberLeave(member) then
+                    self:RemoveMember(member)
+                end
+            end
+        end
+    end
+end
+
+function MembershipSystem:UpdateMemberSatisfaction(member)
+    local equipmentSystem = self:GetSystem("EquipmentSystem")
+    local satisfaction = 1.0
+    
+    -- Check equipment condition
+    for equipmentType, usage in pairs(member.equipmentUsage) do
+        local equipment = equipmentSystem:GetEquipmentByType(equipmentType)
+        if equipment then
+            local condition = (equipment.attributes.durability + equipment.attributes.cleanliness) / 2
+            satisfaction = satisfaction * (0.5 + condition / 200) -- 0.5-1.5 range
+        end
+    end
+    
+    -- Apply membership type satisfaction threshold
+    local membershipType = Constants.MEMBERSHIP[member.membershipType]
+    if satisfaction < membershipType.satisfactionThreshold then
+        member.loyalty = math.max(0, member.loyalty - 0.1)
+    else
+        member.loyalty = math.min(1.0, member.loyalty + 0.05)
+    end
+    
+    member.satisfaction = satisfaction
+    
+    -- Update visual indicator
+    if member.model then
+        local bar = member.model.Character.MembershipIndicator.SatisfactionBar
+        if bar then
+            bar.Size = UDim2.new(satisfaction, 0, 1, 0)
+            bar.BackgroundColor3 = self:GetSatisfactionColor(satisfaction)
+        end
+    end
+end
+
+function MembershipSystem:GetSatisfactionColor(satisfaction)
+    if satisfaction > 0.7 then
+        return Color3.fromRGB(0, 255, 0)
+    elseif satisfaction > 0.4 then
+        return Color3.fromRGB(255, 255, 0)
+    else
+        return Color3.fromRGB(255, 0, 0)
+    end
+end
+
+function MembershipSystem:AssignMemberActivity(member)
+    -- Check if member should visit based on preferences
+    local currentHour = os.date("*t").hour
+    if math.abs(currentHour - member.preferences.preferredTime) > 2 then
+        return
+    end
+    
+    -- Find available equipment
+    local equipmentSystem = self:GetSystem("EquipmentSystem")
+    local availableEquipment = equipmentSystem:GetAvailableEquipment(member.preferences.preferredEquipment)
+    
+    if #availableEquipment > 0 then
+        local selectedEquipment = availableEquipment[math.random(1, #availableEquipment)]
+        member.currentActivity = {
+            equipmentId = selectedEquipment.id,
+            startTime = os.time(),
+            duration = member.preferences.workoutDuration * 60
+        }
+        
+        -- Start using equipment
+        equipmentSystem:UseEquipment(selectedEquipment.id, member.id)
+    end
+end
+
+function MembershipSystem:UpdateMemberActivity(member)
+    if not member.currentActivity then return end
+    
+    local currentTime = os.time()
+    local activityDuration = currentTime - member.currentActivity.startTime
+    
+    if activityDuration >= member.currentActivity.duration then
+        -- Activity complete
+        local equipmentSystem = self:GetSystem("EquipmentSystem")
+        local equipment = equipmentSystem:GetEquipmentData(member.currentActivity.equipmentId)
+        
+        if equipment then
+            member.equipmentUsage[equipment.type] = (member.equipmentUsage[equipment.type] or 0) + 1
+        end
+        
+        member.currentActivity = nil
+    end
+end
+
+function MembershipSystem:ShouldMemberLeave(member)
+    -- Check satisfaction and loyalty
+    if member.satisfaction < 0.3 and member.loyalty < 0.2 then
+        return true
+    end
+    
+    -- Check if member hasn't visited in a while
+    local daysSinceLastVisit = (os.time() - member.lastVisit) / (24 * 3600)
+    if daysSinceLastVisit > 7 then
+        return true
+    end
+    
+    return false
+end
+
+function MembershipSystem:RemoveMember(member)
+    -- Remove physical member
+    if member.model then
+        member.model:Destroy()
+    end
+    
+    -- Update player data
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(member.playerId)
+    if playerData then
+        playerData.memberCount = (playerData.memberCount or 1) - 1
+        playerData.members = playerData.members or {}
+        
+        -- Remove member from player's list
+        for i, memberId in ipairs(playerData.members) do
+            if memberId == member.id then
+                table.remove(playerData.members, i)
+                break
+            end
+        end
+    end
+    
+    -- Remove from active members
+    if activeMembers[member.playerId] then
+        for i, memberId in ipairs(activeMembers[member.playerId]) do
+            if memberId == member.id then
+                table.remove(activeMembers[member.playerId], i)
+                break
+            end
+        end
+    end
+    
+    -- Remove member data
+    memberData[member.id] = nil
+end
+
+function MembershipSystem:GetMemberData(memberId)
+    return memberData[memberId]
+end
+
+function MembershipSystem:GetActiveMembers(playerId)
+    return activeMembers[playerId] or {}
+end
+
+function MembershipSystem:GetSystem(systemName)
+    local coreRegistry = require(script.Parent.CoreRegistry)
+    return coreRegistry:GetSystem(systemName)
+end
+
+return MembershipSystem ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="12">
+          <Properties>
+            <string name="Name">ProgressionSystem</string>
+            <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local ProgressionSystem = {}
+ProgressionSystem.__index = ProgressionSystem
+
+-- Private variables
+local playerProgress = {}
+local floorMilestones = {}
+
+function ProgressionSystem.new()
+    local self = setmetatable({}, ProgressionSystem)
+    return self
+end
+
+function ProgressionSystem:Initialize()
+    -- Initialize floor milestones
+    self:InitializeFloorMilestones()
+    
+    -- Start progression check loop
+    task.spawn(function()
+        while true do
+            task.wait(60) -- Check progression every minute
+            self:CheckProgression()
+        end
+    end)
+    
+    print("ProgressionSystem initialized")
+end
+
+function ProgressionSystem:InitializeFloorMilestones()
+    -- Define milestones for each floor
+    floorMilestones = {
+        [2] = {
+            requiredTiles = 10,
+            requiredMembers = 50,
+            requiredLevel = 5,
+            cost = 50000,
+            rewards = {
+                money = 10000,
+                xp = 5000
+            }
+        },
+        [3] = {
+            requiredTiles = 20,
+            requiredMembers = 100,
+            requiredLevel = 10,
+            cost = 100000,
+            rewards = {
+                money = 20000,
+                xp = 10000
+            }
+        }
+    }
+end
+
+function ProgressionSystem:CheckProgression()
+    for userId, progress in pairs(playerProgress) do
+        local player = game.Players:GetPlayerByUserId(userId)
+        if player then
+            self:UpdatePlayerProgress(player)
+        end
+    end
+end
+
+function ProgressionSystem:UpdatePlayerProgress(player)
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(player)
+    
+    if not playerData then return end
+    
+    -- Initialize progress tracking if needed
+    if not playerProgress[player.UserId] then
+        playerProgress[player.UserId] = {
+            lastChecked = os.time(),
+            milestones = {}
+        }
+    end
+    
+    -- Check floor unlock conditions
+    for floor, requirements in pairs(floorMilestones) do
+        if not table.find(playerData.unlockedFloors, floor) then
+            local canUnlock = self:CanUnlockFloor(player, floor)
+            if canUnlock then
+                self:UnlockFloor(player, floor)
+            end
+        end
+    end
+    
+    -- Update progress tracking
+    playerProgress[player.UserId].lastChecked = os.time()
+end
+
+function ProgressionSystem:CanUnlockFloor(player, floor)
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(player)
+    
+    if not playerData then return false end
+    
+    local requirements = floorMilestones[floor]
+    if not requirements then return false end
+    
+    -- Check if player meets all requirements
+    local ownedTiles = #playerData.ownedTiles
+    local memberCount = playerData.membershipCount
+    local playerLevel = playerData.level
+    local playerMoney = playerData.money
+    
+    return ownedTiles >= requirements.requiredTiles
+        and memberCount >= requirements.requiredMembers
+        and playerLevel >= requirements.requiredLevel
+        and playerMoney >= requirements.cost
+end
+
+function ProgressionSystem:UnlockFloor(player, floor)
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(player)
+    
+    if not playerData then return false end
+    
+    local requirements = floorMilestones[floor]
+    if not requirements then return false end
+    
+    -- Deduct cost
+    dataManager:IncrementValue(player, "money", -requirements.cost)
+    
+    -- Add floor to unlocked floors
+    table.insert(playerData.unlockedFloors, floor)
+    dataManager:UpdateValue(player, "unlockedFloors", playerData.unlockedFloors)
+    
+    -- Award rewards
+    if requirements.rewards then
+        if requirements.rewards.money then
+            dataManager:IncrementValue(player, "money", requirements.rewards.money)
+        end
+        
+        if requirements.rewards.xp then
+            self:AwardXP(player, requirements.rewards.xp)
+        end
+    end
+    
+    -- Trigger floor unlock event
+    self:OnFloorUnlocked(player, floor)
+    
+    return true
+end
+
+function ProgressionSystem:OnFloorUnlocked(player, floor)
+    -- Update challenge system
+    local challengeSystem = self:GetSystem("ChallengeSystem")
+    if challengeSystem then
+        challengeSystem:UpdateChallengeProgress(player, "floor_unlocked", 1)
+    end
+    
+    -- TODO: Implement floor unlock notification
+    -- TODO: Implement floor unlock effects
+    -- TODO: Implement floor unlock tutorial
+end
+
+function ProgressionSystem:GetFloorRequirements(floor)
+    return floorMilestones[floor]
+end
+
+function ProgressionSystem:GetPlayerProgress(player)
+    return playerProgress[player.UserId]
+end
+
+function ProgressionSystem:AwardXP(player, amount)
+    local dataManager = self:GetSystem("DataManager")
+    local playerData = dataManager:GetPlayerData(player)
+    
+    if playerData then
+        -- Calculate level up
+        local currentXP = playerData.experience + amount
+        local baseLevelUp = Constants.EXPERIENCE.BASE_LEVEL_UP
+        local levelMultiplier = Constants.EXPERIENCE.LEVEL_MULTIPLIER
+        
+        while currentXP >= baseLevelUp do
+            currentXP = currentXP - baseLevelUp
+            playerData.level = playerData.level + 1
+            baseLevelUp = baseLevelUp * levelMultiplier
+            
+            -- Trigger level up event
+            self:OnLevelUp(player, playerData.level)
+        end
+        
+        dataManager:UpdateValue(player, "experience", currentXP)
+        dataManager:UpdateValue(player, "level", playerData.level)
+    end
+end
+
+function ProgressionSystem:OnLevelUp(player, newLevel)
+    -- Update challenge system
+    local challengeSystem = self:GetSystem("ChallengeSystem")
+    if challengeSystem then
+        challengeSystem:UpdateChallengeProgress(player, "level_up", 1)
+    end
+    
+    -- TODO: Implement level up notification
+    -- TODO: Implement level up rewards
+    -- TODO: Implement level up effects
+end
+
+function ProgressionSystem:GetSystem(systemName)
+    local coreRegistry = require(script.Parent.CoreRegistry)
+    return coreRegistry:GetSystem(systemName)
+end
+
+return ProgressionSystem ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="13">
+          <Properties>
+            <string name="Name">StaffSystem</string>
+            <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local RunService = game:GetService("RunService")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+local DataManager = require(script.Parent.DataManager)
+
+local StaffSystem = {}
+StaffSystem.__index = StaffSystem
+
+-- Private variables
+local staffData = {}
+local activeStaff = {}
+local taskQueue = {}
+
+function StaffSystem.new()
+    local self = setmetatable({}, StaffSystem)
+    return self
+end
+
+function StaffSystem:Initialize()
+    -- Load staff data from DataManager
+    staffData = DataManager:GetData("staff") or {}
+    
+    -- Start staff update loop
+    RunService.Heartbeat:Connect(function(deltaTime)
+        self:UpdateStaff(deltaTime)
+    end)
+end
+
+function StaffSystem:HireStaff(staffType)
+    local staffTemplate = Constants.STAFF[staffType]
+    if not staffTemplate then
+        return nil, "Invalid staff type"
+    end
+    
+    -- Create new staff instance
+    local staffId = #staffData + 1
+    local staff = {
+        id = staffId,
+        type = staffType,
+        name = staffTemplate.name,
+        specialization = staffTemplate.specialization,
+        hireDate = os.time(),
+        energy = staffTemplate.maxEnergy,
+        experience = 0,
+        efficiency = staffTemplate.taskEfficiency,
+        satisfaction = 1.0,
+        currentTask = nil,
+        taskProgress = 0
+    }
+    
+    -- Store staff data
+    staffData[staffId] = staff
+    DataManager:SetData("staff", staffData)
+    
+    -- Create physical staff
+    self:CreatePhysicalStaff(staff)
+    
+    return staff
+end
+
+function StaffSystem:CreatePhysicalStaff(staff)
+    -- Create staff model
+    local staffModel = Instance.new("Model")
+    staffModel.Name = "Staff_" .. staff.id
+    
+    -- Create staff character
+    local character = Instance.new("Part")
+    character.Name = "Character"
+    character.Size = Vector3.new(1, 4, 1)
+    character.Position = Vector3.new(0, 2, 0)
+    character.Anchored = true
+    character.CanCollide = true
+    character.Parent = staffModel
+    
+    -- Create staff head
+    local head = Instance.new("Part")
+    head.Name = "Head"
+    head.Size = Vector3.new(1, 1, 1)
+    head.Position = Vector3.new(0, 4.5, 0)
+    head.Anchored = true
+    head.CanCollide = true
+    head.Parent = staffModel
+    
+    -- Create staff status indicator
+    local statusGui = Instance.new("BillboardGui")
+    statusGui.Name = "StatusGui"
+    statusGui.Size = UDim2.new(0, 100, 0, 20)
+    statusGui.StudsOffset = Vector3.new(0, 5, 0)
+    statusGui.Parent = head
+    
+    local statusBar = Instance.new("Frame")
+    statusBar.Name = "StatusBar"
+    statusBar.Size = UDim2.new(1, 0, 1, 0)
+    statusBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    statusBar.Parent = statusGui
+    
+    -- Store staff model
+    activeStaff[staff.id] = staffModel
+    staffModel.Parent = workspace.Staff
+end
+
+function StaffSystem:UpdateStaff(deltaTime)
+    for staffId, staff in pairs(staffData) do
+        -- Update energy
+        local staffTemplate = Constants.STAFF[staff.type]
+        staff.energy = math.min(
+            staffTemplate.maxEnergy,
+            staff.energy + staffTemplate.energyRegenRate * deltaTime
+        )
+        
+        -- Update current task
+        if staff.currentTask then
+            staff.taskProgress = staff.taskProgress + deltaTime
+            
+            -- Check if task is complete
+            if staff.taskProgress >= staff.currentTask.duration then
+                self:CompleteTask(staff)
+            end
+        else
+            -- Try to assign new task
+            self:AssignTask(staff)
+        end
+        
+        -- Update staff visuals
+        self:UpdateStaffVisuals(staff)
+    end
+end
+
+function StaffSystem:AssignTask(staff)
+    if staff.energy < 20 then return end -- Minimum energy required for tasks
+    
+    -- Find suitable task based on specialization
+    local task = nil
+    if staff.specialization == "MAINTENANCE" then
+        -- Find equipment needing maintenance
+        for _, equipment in pairs(workspace.Equipment:GetChildren()) do
+            local equipmentData = equipment:GetAttribute("EquipmentData")
+            if equipmentData and equipmentData.durability < 0.7 then
+                task = {
+                    type = "MAINTENANCE",
+                    target = equipment,
+                    duration = 30, -- 30 seconds
+                    energyCost = 20
+                }
+                break
+            end
+        end
+    elseif staff.specialization == "CLEANING" then
+        -- Find equipment needing cleaning
+        for _, equipment in pairs(workspace.Equipment:GetChildren()) do
+            local equipmentData = equipment:GetAttribute("EquipmentData")
+            if equipmentData and equipmentData.cleanliness < 0.7 then
+                task = {
+                    type = "CLEANING",
+                    target = equipment,
+                    duration = 20, -- 20 seconds
+                    energyCost = 15
+                }
+                break
+            end
+        end
+    elseif staff.specialization == "TRAINING" then
+        -- Find members who could benefit from training
+        local membershipSystem = self:GetSystem("MembershipSystem")
+        if membershipSystem then
+            local members = membershipSystem:GetActiveMembers()
+            for _, member in pairs(members) do
+                if member.satisfaction < 0.8 and not member.currentActivity then
+                    task = {
+                        type = "TRAINING",
+                        target = member,
+                        duration = Constants.STAFF.TRAINER.trainingDuration,
+                        energyCost = Constants.STAFF.TRAINER.energyCost
+                    }
+                    break
+                end
+            end
+        end
+    end
+    
+    if task then
+        staff.currentTask = task
+        staff.taskProgress = 0
+        staff.energy = staff.energy - task.energyCost
+        
+        -- Move staff to task location
+        local staffModel = activeStaff[staff.id]
+        if staffModel then
+            if task.type == "TRAINING" then
+                -- Move to member's location
+                local memberModel = task.target.model
+                if memberModel then
+                    staffModel:SetPrimaryPartCFrame(
+                        CFrame.new(memberModel.PrimaryPart.Position + Vector3.new(0, 0, 2))
+                    )
+                end
+            else
+                staffModel:SetPrimaryPartCFrame(
+                    CFrame.new(task.target.Position + Vector3.new(0, 0, 2))
+                )
+            end
+        end
+    end
+end
+
+function StaffSystem:CompleteTask(staff)
+    if not staff.currentTask then return end
+    
+    local task = staff.currentTask
+    
+    -- Apply task effects
+    if task.type == "MAINTENANCE" then
+        local equipment = task.target
+        local equipmentData = equipment:GetAttribute("EquipmentData")
+        equipmentData.durability = 1.0
+        equipment:SetAttribute("EquipmentData", equipmentData)
+    elseif task.type == "CLEANING" then
+        local equipment = task.target
+        local equipmentData = equipment:GetAttribute("EquipmentData")
+        equipmentData.cleanliness = 1.0
+        equipment:SetAttribute("EquipmentData", equipmentData)
+    elseif task.type == "TRAINING" then
+        local member = task.target
+        local staffTemplate = Constants.STAFF[staff.type]
+        
+        -- Boost member satisfaction
+        member.satisfaction = math.min(1.0, member.satisfaction + staffTemplate.memberSatisfactionBoost)
+        
+        -- Update member loyalty
+        member.loyalty = math.min(1.0, member.loyalty + 0.1)
+        
+        -- Update member data
+        local membershipSystem = self:GetSystem("MembershipSystem")
+        if membershipSystem then
+            membershipSystem:UpdateMemberData(member)
+        end
+    end
+    
+    -- Update staff experience
+    local staffTemplate = Constants.STAFF[staff.type]
+    staff.experience = staff.experience + staffTemplate.experienceGain
+    staff.efficiency = staffTemplate.taskEfficiency * (1 + staff.experience * 0.1)
+    
+    -- Clear task
+    staff.currentTask = nil
+    staff.taskProgress = 0
+end
+
+function StaffSystem:UpdateStaffVisuals(staff)
+    local staffModel = activeStaff[staff.id]
+    if not staffModel then return end
+    
+    local statusBar = staffModel.Head.StatusGui.StatusBar
+    if statusBar then
+        -- Update energy bar
+        local energyPercent = staff.energy / Constants.STAFF[staff.type].maxEnergy
+        statusBar.Size = UDim2.new(energyPercent, 0, 1, 0)
+        
+        -- Update color based on energy level
+        if energyPercent > 0.7 then
+            statusBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        elseif energyPercent > 0.3 then
+            statusBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+        else
+            statusBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        end
+    end
+end
+
+function StaffSystem:FireStaff(staffId)
+    local staff = staffData[staffId]
+    if not staff then return false, "Staff not found" end
+    
+    -- Remove physical staff
+    local staffModel = activeStaff[staffId]
+    if staffModel then
+        staffModel:Destroy()
+        activeStaff[staffId] = nil
+    end
+    
+    -- Remove staff data
+    staffData[staffId] = nil
+    DataManager:SetData("staff", staffData)
+    
+    return true
+end
+
+function StaffSystem:GetStaffData(staffId)
+    return staffData[staffId]
+end
+
+function StaffSystem:GetAllStaff()
+    return staffData
+end
+
+function StaffSystem:GetActiveStaff()
+    return activeStaff
+end
+
+function StaffSystem:GetSystem(systemName)
+    local coreRegistry = require(script.Parent.CoreRegistry)
+    return coreRegistry:GetSystem(systemName)
+end
+
+return StaffSystem ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="14">
+          <Properties>
+            <string name="Name">TileSystem</string>
+            <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local TileSystem = {}
+TileSystem.__index = TileSystem
+
+-- Private variables
+local tileData = {}
+local tileTemplates = {}
+
+function TileSystem.new()
+    local self = setmetatable({}, TileSystem)
+    return self
+end
+
+function TileSystem:Initialize()
+    -- Load tile templates
+    self:LoadTileTemplates()
+    
+    print("TileSystem initialized")
+end
+
+function TileSystem:LoadTileTemplates()
+    -- Define tile templates with their attributes
+    tileTemplates = {
+        FLOOR = {
+            name = "Floor",
+            category = "Basic",
+            baseCost = 100,
+            canPlaceEquipment = false,
+            walkable = true
+        },
+        CARDIO_AREA = {
+            name = "Cardio Area",
+            category = "Cardio",
+            baseCost = 500,
+            canPlaceEquipment = true,
+            equipmentTypes = {"TREADMILL", "ELLIPTICAL"},
+            walkable = true
+        },
+        STRENGTH_AREA = {
+            name = "Strength Area",
+            category = "Strength",
+            baseCost = 500,
+            canPlaceEquipment = true,
+            equipmentTypes = {"WEIGHT_BENCH"},
+            walkable = true
+        },
+        WALL = {
+            name = "Wall",
+            category = "Basic",
+            baseCost = 200,
+            canPlaceEquipment = false,
+            walkable = false
+        }
+    }
+end
+
+function TileSystem:CreateTile(tileType, position, floor)
+    local template = tileTemplates[tileType]
+    if not template then return nil end
+    
+    -- Create tile instance
+    local tile = {
+        id = #tileData + 1,
+        type = tileType,
+        position = position,
+        floor = floor,
+        equipment = nil
+    }
+    
+    -- Store tile data
+    tileData[tile.id] = tile
+    
+    -- Create physical tile in workspace
+    self:CreatePhysicalTile(tile)
+    
+    return tile
+end
+
+function TileSystem:CreatePhysicalTile(tile)
+    local tilesFolder = workspace:FindFirstChild("Tiles")
+    if not tilesFolder then
+        tilesFolder = Instance.new("Folder")
+        tilesFolder.Name = "Tiles"
+        tilesFolder.Parent = workspace
+    end
+    
+    -- Create tile model
+    local model = Instance.new("Model")
+    model.Name = string.format("Tile_%d_%d_%d", tile.position.X, tile.position.Y, tile.position.Z)
+    
+    -- Create base part
+    local base = Instance.new("Part")
+    base.Name = "Base"
+    base.Size = Vector3.new(Constants.GRID_SIZE, 0.5, Constants.GRID_SIZE)
+    base.Position = tile.position
+    base.Anchored = true
+    base.CanCollide = true
+    base.Parent = model
+    
+    -- Set material and color based on tile type
+    local template = tileTemplates[tile.type]
+    if template then
+        if template.category == "Cardio" then
+            base.Color = Color3.fromRGB(255, 200, 200) -- Light red
+        elseif template.category == "Strength" then
+            base.Color = Color3.fromRGB(200, 200, 255) -- Light blue
+        else
+            base.Color = Color3.fromRGB(200, 200, 200) -- Light gray
+        end
+    end
+    
+    -- Add to workspace
+    model.Parent = tilesFolder
+    
+    -- Store reference
+    tile.model = model
+end
+
+function TileSystem:PlaceEquipment(tileId, equipmentType)
+    local tile = tileData[tileId]
+    if not tile then return false, "Tile not found" end
+    
+    -- Check if tile can have equipment
+    local template = tileTemplates[tile.type]
+    if not template.canPlaceEquipment then
+        return false, "This tile type cannot have equipment"
+    end
+    
+    -- Check if equipment type is allowed
+    if template.equipmentTypes and not table.find(template.equipmentTypes, equipmentType) then
+        return false, "This equipment type is not allowed on this tile"
+    end
+    
+    -- Check if tile already has equipment
+    if tile.equipment then
+        return false, "Tile already has equipment"
+    end
+    
+    -- Create equipment
+    local equipmentSystem = self:GetSystem("EquipmentSystem")
+    local equipment = equipmentSystem:CreateEquipment(equipmentType, tile.position, tile.floor)
+    
+    if not equipment then
+        return false, "Failed to create equipment"
+    end
+    
+    -- Link equipment to tile
+    tile.equipment = equipment.id
+    
+    return true, "Equipment placed successfully"
+end
+
+function TileSystem:RemoveEquipment(tileId)
+    local tile = tileData[tileId]
+    if not tile or not tile.equipment then return false, "No equipment to remove" end
+    
+    -- Remove physical equipment
+    local equipmentSystem = self:GetSystem("EquipmentSystem")
+    local equipment = equipmentSystem:GetEquipmentData(tile.equipment)
+    
+    if equipment and equipment.model then
+        equipment.model:Destroy()
+    end
+    
+    -- Clear equipment reference
+    tile.equipment = nil
+    
+    return true, "Equipment removed successfully"
+end
+
+function TileSystem:GetTileData(tileId)
+    return tileData[tileId]
+end
+
+function TileSystem:GetTileTemplate(tileType)
+    return tileTemplates[tileType]
+end
+
+function TileSystem:GetSystem(systemName)
+    local coreRegistry = require(script.Parent.CoreRegistry)
+    return coreRegistry:GetSystem(systemName)
+end
+
+return TileSystem ]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="15">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="16">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">client</string>
+          <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Create UI folder
+local ui = Instance.new("ScreenGui")
+ui.Name = "UI"
+ui.ResetOnSpawn = false
+ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create RemoteEvents folder
+local remotes = Instance.new("Folder")
+remotes.Name = "RemoteEvents"
+remotes.Parent = ReplicatedStorage
+
+-- Create remote events
+local remoteEvents = {
+    "PlaceTile",
+    "CleanEquipment",
+    "MaintainEquipment",
+    "UseEquipment",
+    "StopUsingEquipment",
+    "UpdateChallengeProgress",
+    "UnlockFloor",
+    "UpdateMoney",
+    "UpdateLevel"
+}
+
+for _, eventName in ipairs(remoteEvents) do
+    local event = Instance.new("RemoteEvent")
+    event.Name = eventName
+    event.Parent = remotes
+end
+
+-- Load shared modules
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+-- Load controllers
+local UIController = require(script.Parent.Controllers.UIController)
+local PlayerController = require(script.Parent.Controllers.PlayerController)
+local CameraController = require(script.Parent.Controllers.CameraController)
+
+-- Initialize controllers
+local uiController = UIController.new()
+local playerController = PlayerController.new()
+local cameraController = CameraController.new()
+
+uiController:Initialize()
+playerController:Initialize()
+cameraController:Initialize()
+
+-- Connect remote events
+remotes.PlaceTile.OnClientEvent:Connect(function(success, message)
+    if success then
+        uiController:ShowNotification("Success", "Tile placed successfully!")
+    else
+        uiController:ShowNotification("Error", message)
+    end
+end)
+
+remotes.CleanEquipment.OnClientEvent:Connect(function(success, message)
+    if success then
+        uiController:ShowNotification("Success", "Equipment cleaned!")
+    else
+        uiController:ShowNotification("Error", message)
+    end
+end)
+
+remotes.MaintainEquipment.OnClientEvent:Connect(function(success, message)
+    if success then
+        uiController:ShowNotification("Success", "Equipment maintained!")
+    else
+        uiController:ShowNotification("Error", message)
+    end
+end)
+
+remotes.UseEquipment.OnClientEvent:Connect(function(success, message)
+    if success then
+        uiController:ShowNotification("Success", "Using equipment!")
+    else
+        uiController:ShowNotification("Error", message)
+    end
+end)
+
+remotes.UpdateChallengeProgress.OnClientEvent:Connect(function(challengeType, progress)
+    uiController:UpdateChallengeProgress(challengeType, progress)
+end)
+
+remotes.UnlockFloor.OnClientEvent:Connect(function(floor)
+    uiController:ShowFloorUnlocked(floor)
+    cameraController:SwitchFloor(floor)
+end)
+
+remotes.UpdateMoney.OnClientEvent:Connect(function(amount)
+    uiController:UpdateMoney(amount)
+end)
+
+remotes.UpdateLevel.OnClientEvent:Connect(function(level)
+    uiController:UpdateLevel(level)
+end)
+
+-- Connect camera and player controllers
+cameraController.SwitchFloor:Connect(function(floor)
+    playerController:SetCurrentFloor(floor)
+end)
+
+-- Cleanup on player leaving
+LocalPlayer.AncestryChanged:Connect(function(_, parent)
+    if not parent then
+        uiController:Cleanup()
+        playerController:Cleanup()
+        cameraController:Cleanup()
+    end
+end)
+
+print("Client initialized") ]]></string>
+        </Properties>
+        <Item class="Folder" referent="18">
+          <Properties>
+            <string name="Name">Controllers</string>
+          </Properties>
+          <Item class="ModuleScript" referent="19">
+            <Properties>
+              <string name="Name">CameraController</string>
+              <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local CameraController = {}
+CameraController.__index = CameraController
+
+-- Private variables
+local isDragging = false
+local lastMousePosition = Vector2.new()
+local currentFloor = 1
+local cameraOffset = Vector3.new(0, 20, 20)
+local cameraAngle = CFrame.fromEulerAnglesXYZ(-math.pi/4, 0, 0)
+local targetPosition = Vector3.new()
+local isTransitioning = false
+
+function CameraController.new()
+    local self = setmetatable({}, CameraController)
+    return self
+end
+
+function CameraController:Initialize()
+    -- Set up input handling
+    self:SetupInputHandling()
+    
+    -- Set up camera movement
+    self:SetupCameraMovement()
+    
+    -- Set initial camera position
+    self:UpdateCameraPosition()
+    
+    print("CameraController initialized")
+end
+
+function CameraController:SetupInputHandling()
+    -- Handle mouse drag for camera rotation
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            isDragging = true
+            lastMousePosition = UserInputService:GetMouseLocation()
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            isDragging = false
+        end
+    end)
+    
+    -- Handle mouse wheel for zoom
+    UserInputService.InputChanged:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.UserInputType == Enum.UserInputType.MouseWheel then
+            self:HandleZoom(input.Position.Z)
+        end
+    end)
+    
+    -- Handle keyboard for floor switching
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == Enum.KeyCode.PageUp then
+            self:SwitchFloor(currentFloor + 1)
+        elseif input.KeyCode == Enum.KeyCode.PageDown then
+            self:SwitchFloor(currentFloor - 1)
+        end
+    end)
+end
+
+function CameraController:SetupCameraMovement()
+    RunService.RenderStepped:Connect(function()
+        if isDragging then
+            self:HandleRotation()
+        end
+        
+        if not isTransitioning then
+            self:UpdateCameraPosition()
+        end
+    end)
+end
+
+function CameraController:HandleRotation()
+    local currentMousePosition = UserInputService:GetMouseLocation()
+    local delta = currentMousePosition - lastMousePosition
+    
+    -- Update camera angle based on mouse movement
+    cameraAngle = cameraAngle * CFrame.fromEulerAnglesXYZ(0, -delta.X * 0.01, 0)
+    
+    lastMousePosition = currentMousePosition
+end
+
+function CameraController:HandleZoom(direction)
+    -- Adjust camera offset based on zoom direction
+    local zoomSpeed = 2
+    local minDistance = 10
+    local maxDistance = 50
+    
+    local newY = cameraOffset.Y - direction * zoomSpeed
+    local newZ = cameraOffset.Z - direction * zoomSpeed
+    
+    -- Clamp values
+    newY = math.clamp(newY, minDistance, maxDistance)
+    newZ = math.clamp(newZ, minDistance, maxDistance)
+    
+    cameraOffset = Vector3.new(cameraOffset.X, newY, newZ)
+end
+
+function CameraController:UpdateCameraPosition()
+    -- Get current floor position
+    local floor = workspace:FindFirstChild("Floors"):FindFirstChild("Floor" .. currentFloor)
+    if not floor then return end
+    
+    targetPosition = floor.Position
+    
+    -- Calculate camera position
+    local cameraPosition = targetPosition + cameraOffset
+    local cameraCFrame = CFrame.new(cameraPosition) * cameraAngle
+    
+    -- Update camera
+    Camera.CFrame = cameraCFrame
+end
+
+function CameraController:SwitchFloor(floor)
+    -- Validate floor number
+    local maxFloor = Constants.MAX_FLOORS
+    floor = math.clamp(floor, 1, maxFloor)
+    
+    if floor == currentFloor then return end
+    
+    -- Start transition
+    isTransitioning = true
+    
+    -- Get target floor
+    local targetFloor = workspace:FindFirstChild("Floors"):FindFirstChild("Floor" .. floor)
+    if not targetFloor then
+        isTransitioning = false
+        return
+    end
+    
+    -- Create tween
+    local targetPosition = targetFloor.Position + cameraOffset
+    local targetCFrame = CFrame.new(targetPosition) * cameraAngle
+    
+    local tweenInfo = TweenInfo.new(
+        1, -- Time
+        Enum.EasingStyle.Quad,
+        Enum.EasingDirection.Out
+    )
+    
+    local tween = TweenService:Create(Camera, tweenInfo, {
+        CFrame = targetCFrame
+    })
+    
+    tween.Completed:Connect(function()
+        currentFloor = floor
+        isTransitioning = false
+    end)
+    
+    tween:Play()
+end
+
+function CameraController:GetCurrentFloor()
+    return currentFloor
+end
+
+function CameraController:Cleanup()
+    -- Clean up any connections or temporary objects
+    isDragging = false
+    isTransitioning = false
+end
+
+return CameraController ]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="20">
+            <Properties>
+              <string name="Name">PlayerController</string>
+              <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local PlayerController = {}
+PlayerController.__index = PlayerController
+
+-- Private variables
+local remotes = {}
+local selectedTile = nil
+local isPlacingTile = false
+local tilePreview = nil
+local currentFloor = 1
+local selectedEquipment = nil
+
+function PlayerController.new()
+    local self = setmetatable({}, PlayerController)
+    return self
+end
+
+function PlayerController:Initialize()
+    -- Get remote events
+    remotes = {
+        placeTile = ReplicatedStorage:WaitForChild("PlaceTile"),
+        placeEquipment = ReplicatedStorage:WaitForChild("PlaceEquipment"),
+        removeEquipment = ReplicatedStorage:WaitForChild("RemoveEquipment"),
+        useEquipment = ReplicatedStorage:WaitForChild("UseEquipment"),
+        cleanEquipment = ReplicatedStorage:WaitForChild("CleanEquipment"),
+        maintainEquipment = ReplicatedStorage:WaitForChild("MaintainEquipment")
+    }
+    
+    -- Setup input handling
+    self:SetupInputHandling()
+    
+    -- Setup mouse tracking
+    self:SetupMouseTracking()
+    
+    print("PlayerController initialized")
+end
+
+function PlayerController:SetupInputHandling()
+    -- Tile placement
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if isPlacingTile then
+                self:AttemptPlaceTile()
+            else
+                self:AttemptInteractWithEquipment()
+            end
+        elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+            self:CancelTilePlacement()
+        end
+        
+        -- Equipment interaction
+        if input.KeyCode == Enum.KeyCode.E then
+            self:UseEquipment()
+        elseif input.KeyCode == Enum.KeyCode.C then
+            self:CleanEquipment()
+        elseif input.KeyCode == Enum.KeyCode.M then
+            self:MaintainEquipment()
+        end
+    end)
+end
+
+function PlayerController:SetupMouseTracking()
+    RunService.RenderStepped:Connect(function()
+        if isPlacingTile and tilePreview then
+            local hit = self:GetMouseHit()
+            if hit then
+                local position = self:RoundToGrid(hit.Position)
+                tilePreview:SetPrimaryPartCFrame(CFrame.new(position))
+                
+                -- Update preview color based on placement validity
+                local canPlace = self:CanPlaceTile(position)
+                tilePreview.PrimaryPart.Color = canPlace and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+            end
+        end
+    end)
+end
+
+function PlayerController:GetMouseHit()
+    local mouse = Players.LocalPlayer:GetMouse()
+    local ray = workspace.CurrentCamera:ScreenPointToRay(mouse.X, mouse.Y)
+    local hit = workspace:Raycast(ray.Origin, ray.Direction * 1000)
+    return hit
+end
+
+function PlayerController:RoundToGrid(position)
+    local gridSize = Constants.GRID_SIZE
+    return Vector3.new(
+        math.floor(position.X / gridSize) * gridSize,
+        position.Y,
+        math.floor(position.Z / gridSize) * gridSize
+    )
+end
+
+function PlayerController:CanPlaceTile(position)
+    -- Check if position is within floor bounds
+    local floorBounds = Constants.FLOOR_BOUNDS[currentFloor]
+    if not floorBounds then return false end
+    
+    if position.X < floorBounds.min.X or position.X > floorBounds.max.X or
+       position.Z < floorBounds.min.Z or position.Z > floorBounds.max.Z then
+        return false
+    end
+    
+    -- Check if position is already occupied
+    local existingTile = workspace.Tiles:FindFirstChild(string.format("Tile_%d_%d_%d", position.X, position.Y, position.Z))
+    if existingTile then return false end
+    
+    return true
+end
+
+function PlayerController:AttemptPlaceTile()
+    if not isPlacingTile or not tilePreview then return end
+    
+    local position = tilePreview.PrimaryPart.Position
+    if not self:CanPlaceTile(position) then return end
+    
+    remotes.placeTile:FireServer(selectedTile, position, currentFloor)
+    self:CancelTilePlacement()
+end
+
+function PlayerController:StartTilePlacement(tileType)
+    if isPlacingTile then
+        self:CancelTilePlacement()
+    end
+    
+    selectedTile = tileType
+    isPlacingTile = true
+    
+    -- Create preview model
+    tilePreview = Instance.new("Model")
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(Constants.GRID_SIZE, 0.5, Constants.GRID_SIZE)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 0.5
+    part.Parent = tilePreview
+    tilePreview.PrimaryPart = part
+    tilePreview.Parent = workspace
+end
+
+function PlayerController:CancelTilePlacement()
+    if tilePreview then
+        tilePreview:Destroy()
+        tilePreview = nil
+    end
+    isPlacingTile = false
+    selectedTile = nil
+end
+
+function PlayerController:AttemptInteractWithEquipment()
+    local hit = self:GetMouseHit()
+    if not hit then return end
+    
+    local equipment = hit.Instance:FindFirstAncestorOfClass("Model")
+    if not equipment or not equipment:GetAttribute("EquipmentId") then return end
+    
+    selectedEquipment = equipment:GetAttribute("EquipmentId")
+end
+
+function PlayerController:UseEquipment()
+    if not selectedEquipment then return end
+    remotes.useEquipment:FireServer(selectedEquipment)
+end
+
+function PlayerController:CleanEquipment()
+    if not selectedEquipment then return end
+    remotes.cleanEquipment:FireServer(selectedEquipment)
+end
+
+function PlayerController:MaintainEquipment()
+    if not selectedEquipment then return end
+    remotes.maintainEquipment:FireServer(selectedEquipment)
+end
+
+function PlayerController:SetCurrentFloor(floor)
+    currentFloor = floor
+end
+
+function PlayerController:Cleanup()
+    self:CancelTilePlacement()
+    selectedEquipment = nil
+end
+
+return PlayerController ]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="21">
+            <Properties>
+              <string name="Name">UIController</string>
+              <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+
+local UIController = {}
+UIController.__index = UIController
+
+-- Private variables
+local ui = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("UI")
+local notifications = {}
+local activeScreens = {}
+
+function UIController.new()
+    local self = setmetatable({}, UIController)
+    return self
+end
+
+function UIController:Initialize()
+    -- Create UI folders
+    self:CreateUIFolders()
+    
+    -- Create HUD
+    self:CreateHUD()
+    
+    -- Create notification system
+    self:CreateNotificationSystem()
+    
+    print("UIController initialized")
+end
+
+function UIController:CreateUIFolders()
+    local folders = {
+        "HUD",
+        "Screens",
+        "Components",
+        "Notifications"
+    }
+    
+    for _, folderName in ipairs(folders) do
+        local folder = Instance.new("Folder")
+        folder.Name = folderName
+        folder.Parent = ui
+    end
+end
+
+function UIController:CreateHUD()
+    local hud = Instance.new("ScreenGui")
+    hud.Name = "HUD"
+    hud.ResetOnSpawn = false
+    hud.Parent = ui.HUD
+    
+    -- Money display
+    local moneyFrame = Instance.new("Frame")
+    moneyFrame.Name = "MoneyFrame"
+    moneyFrame.Size = UDim2.new(0, 200, 0, 50)
+    moneyFrame.Position = UDim2.new(0, 10, 0, 10)
+    moneyFrame.BackgroundTransparency = 0.5
+    moneyFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    moneyFrame.Parent = hud
+    
+    local moneyLabel = Instance.new("TextLabel")
+    moneyLabel.Name = "MoneyLabel"
+    moneyLabel.Size = UDim2.new(1, 0, 1, 0)
+    moneyLabel.BackgroundTransparency = 1
+    moneyLabel.Text = "Money: $0"
+    moneyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    moneyLabel.TextSize = 24
+    moneyLabel.Parent = moneyFrame
+    
+    -- Level display
+    local levelFrame = Instance.new("Frame")
+    levelFrame.Name = "LevelFrame"
+    levelFrame.Size = UDim2.new(0, 200, 0, 50)
+    levelFrame.Position = UDim2.new(0, 10, 0, 70)
+    levelFrame.BackgroundTransparency = 0.5
+    levelFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    levelFrame.Parent = hud
+    
+    local levelLabel = Instance.new("TextLabel")
+    levelLabel.Name = "LevelLabel"
+    levelLabel.Size = UDim2.new(1, 0, 1, 0)
+    levelLabel.BackgroundTransparency = 1
+    levelLabel.Text = "Level: 1"
+    levelLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    levelLabel.TextSize = 24
+    levelLabel.Parent = levelFrame
+    
+    -- Challenge display
+    local challengeFrame = Instance.new("Frame")
+    challengeFrame.Name = "ChallengeFrame"
+    challengeFrame.Size = UDim2.new(0, 300, 0, 100)
+    challengeFrame.Position = UDim2.new(1, -310, 0, 10)
+    challengeFrame.BackgroundTransparency = 0.5
+    challengeFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    challengeFrame.Parent = hud
+    
+    local challengeLabel = Instance.new("TextLabel")
+    challengeLabel.Name = "ChallengeLabel"
+    challengeLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    challengeLabel.BackgroundTransparency = 1
+    challengeLabel.Text = "Current Challenge"
+    challengeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    challengeLabel.TextSize = 20
+    challengeLabel.Parent = challengeFrame
+    
+    local challengeProgress = Instance.new("TextLabel")
+    challengeProgress.Name = "ChallengeProgress"
+    challengeProgress.Size = UDim2.new(1, 0, 0.7, 0)
+    challengeProgress.Position = UDim2.new(0, 0, 0.3, 0)
+    challengeProgress.BackgroundTransparency = 1
+    challengeProgress.Text = "0/0"
+    challengeProgress.TextColor3 = Color3.fromRGB(255, 255, 255)
+    challengeProgress.TextSize = 18
+    challengeProgress.Parent = challengeFrame
+end
+
+function UIController:CreateNotificationSystem()
+    local notificationGui = Instance.new("ScreenGui")
+    notificationGui.Name = "Notifications"
+    notificationGui.ResetOnSpawn = false
+    notificationGui.Parent = ui.Notifications
+    
+    -- Create notification template
+    local template = Instance.new("Frame")
+    template.Name = "NotificationTemplate"
+    template.Size = UDim2.new(0, 300, 0, 50)
+    template.BackgroundTransparency = 0.5
+    template.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    template.Visible = false
+    template.Parent = notificationGui
+    
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, 0, 0.4, 0)
+    title.BackgroundTransparency = 1
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 18
+    title.Parent = template
+    
+    local message = Instance.new("TextLabel")
+    message.Name = "Message"
+    message.Size = UDim2.new(1, 0, 0.6, 0)
+    message.Position = UDim2.new(0, 0, 0.4, 0)
+    message.BackgroundTransparency = 1
+    message.TextColor3 = Color3.fromRGB(255, 255, 255)
+    message.TextSize = 16
+    message.Parent = template
+end
+
+function UIController:ShowNotification(title, message)
+    local notificationGui = ui.Notifications:WaitForChild("Notifications")
+    local template = notificationGui:WaitForChild("NotificationTemplate")
+    
+    -- Create new notification
+    local notification = template:Clone()
+    notification.Name = "Notification_" .. os.time()
+    notification.Visible = true
+    
+    -- Set position based on existing notifications
+    local yOffset = #notifications * 60
+    notification.Position = UDim2.new(1, -310, 0, 10 + yOffset)
+    
+    -- Set content
+    notification.Title.Text = title
+    notification.Message.Text = message
+    
+    -- Add to notifications list
+    table.insert(notifications, notification)
+    notification.Parent = notificationGui
+    
+    -- Animate in
+    notification.Position = UDim2.new(1, 10, 0, 10 + yOffset)
+    notification:TweenPosition(
+        UDim2.new(1, -310, 0, 10 + yOffset),
+        Enum.EasingDirection.Out,
+        Enum.EasingStyle.Quad,
+        0.5
+    )
+    
+    -- Remove after delay
+    task.delay(5, function()
+        if notification and notification.Parent then
+            notification:TweenPosition(
+                UDim2.new(1, 10, 0, 10 + yOffset),
+                Enum.EasingDirection.In,
+                Enum.EasingStyle.Quad,
+                0.5,
+                true,
+                function()
+                    notification:Destroy()
+                    table.remove(notifications, table.find(notifications, notification))
+                    self:UpdateNotificationPositions()
+                end
+            )
+        end
+    end)
+end
+
+function UIController:UpdateNotificationPositions()
+    for i, notification in ipairs(notifications) do
+        local yOffset = (i - 1) * 60
+        notification.Position = UDim2.new(1, -310, 0, 10 + yOffset)
+    end
+end
+
+function UIController:UpdateChallengeProgress(challengeType, progress)
+    local challengeFrame = ui.HUD.HUD:WaitForChild("ChallengeFrame")
+    local challengeProgress = challengeFrame:WaitForChild("ChallengeProgress")
+    
+    -- Update progress display
+    challengeProgress.Text = string.format("%d/%d", progress.current, progress.required)
+end
+
+function UIController:ShowFloorUnlocked(floor)
+    self:ShowNotification(
+        "New Floor Unlocked!",
+        string.format("Floor %d is now available!", floor)
+    )
+end
+
+function UIController:UpdateMoney(amount)
+    local moneyLabel = ui.HUD.HUD:WaitForChild("MoneyFrame"):WaitForChild("MoneyLabel")
+    moneyLabel.Text = string.format("Money: $%d", amount)
+end
+
+function UIController:UpdateLevel(level)
+    local levelLabel = ui.HUD.HUD:WaitForChild("LevelFrame"):WaitForChild("LevelLabel")
+    levelLabel.Text = string.format("Level: %d", level)
+end
+
+function UIController:Cleanup()
+    -- Clean up any UI elements or connections
+    for _, screen in pairs(activeScreens) do
+        if screen and screen.Parent then
+            screen:Destroy()
+        end
+    end
+end
+
+return UIController ]]></string>
+            </Properties>
+          </Item>
+        </Item>
+        <Item class="Folder" referent="22">
+          <Properties>
+            <string name="Name">UI</string>
+          </Properties>
+          <Item class="ModuleScript" referent="23">
+            <Properties>
+              <string name="Name">StaffManagementUI</string>
+              <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local Constants = require(ReplicatedStorage.shared.Constants)
+local UIUtils = require(script.Parent.UIUtils)
+
+local StaffManagementUI = {}
+StaffManagementUI.__index = StaffManagementUI
+
+-- Private variables
+local screenGui
+local staffList
+local staffDetails
+local hirePanel
+local selectedStaff
+
+function StaffManagementUI.new()
+    local self = setmetatable({}, StaffManagementUI)
+    return self
+end
+
+function StaffManagementUI:Initialize()
+    -- Create main screen GUI
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "StaffManagementUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    
+    -- Create main frame
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0.8, 0, 0.8, 0)
+    mainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = screenGui
+    
+    -- Create title
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, 0, 0.1, 0)
+    title.Position = UDim2.new(0, 0, 0, 0)
+    title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    title.BorderSizePixel = 0
+    title.Text = "Staff Management"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBold
+    title.Parent = mainFrame
+    
+    -- Create staff list
+    staffList = Instance.new("ScrollingFrame")
+    staffList.Name = "StaffList"
+    staffList.Size = UDim2.new(0.3, 0, 0.8, 0)
+    staffList.Position = UDim2.new(0, 0, 0.1, 0)
+    staffList.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    staffList.BorderSizePixel = 0
+    staffList.ScrollBarThickness = 6
+    staffList.Parent = mainFrame
+    
+    -- Create staff details panel
+    staffDetails = Instance.new("Frame")
+    staffDetails.Name = "StaffDetails"
+    staffDetails.Size = UDim2.new(0.4, 0, 0.8, 0)
+    staffDetails.Position = UDim2.new(0.3, 0, 0.1, 0)
+    staffDetails.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    staffDetails.BorderSizePixel = 0
+    staffDetails.Parent = mainFrame
+    
+    -- Create hire panel
+    hirePanel = Instance.new("Frame")
+    hirePanel.Name = "HirePanel"
+    hirePanel.Size = UDim2.new(0.3, 0, 0.8, 0)
+    hirePanel.Position = UDim2.new(0.7, 0, 0.1, 0)
+    hirePanel.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    hirePanel.BorderSizePixel = 0
+    hirePanel.Parent = mainFrame
+    
+    -- Create hire button
+    local hireButton = Instance.new("TextButton")
+    hireButton.Name = "HireButton"
+    hireButton.Size = UDim2.new(0.8, 0, 0.1, 0)
+    hireButton.Position = UDim2.new(0.1, 0, 0.85, 0)
+    hireButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    hireButton.BorderSizePixel = 0
+    hireButton.Text = "Hire New Staff"
+    hireButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    hireButton.TextScaled = true
+    hireButton.Font = Enum.Font.GothamBold
+    hireButton.Parent = mainFrame
+    
+    -- Create close button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0.05, 0, 0.05, 0)
+    closeButton.Position = UDim2.new(0.95, 0, 0, 0)
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    closeButton.BorderSizePixel = 0
+    closeButton.Text = "X"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Parent = mainFrame
+    
+    -- Set up event handlers
+    hireButton.MouseButton1Click:Connect(function()
+        self:ShowHirePanel()
+    end)
+    
+    closeButton.MouseButton1Click:Connect(function()
+        self:Hide()
+    end)
+    
+    -- Initialize panels
+    self:InitializeStaffList()
+    self:InitializeStaffDetails()
+    self:InitializeHirePanel()
+    
+    -- Hide UI initially
+    self:Hide()
+end
+
+function StaffManagementUI:InitializeStaffList()
+    -- Create list layout
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 5)
+    listLayout.Parent = staffList
+    
+    -- Create staff item template
+    local function createStaffItem(staff)
+        local item = Instance.new("TextButton")
+        item.Name = "Staff_" .. staff.id
+        item.Size = UDim2.new(1, -10, 0, 50)
+        item.Position = UDim2.new(0, 5, 0, 0)
+        item.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+        item.BorderSizePixel = 0
+        item.Text = staff.name
+        item.TextColor3 = Color3.fromRGB(255, 255, 255)
+        item.TextScaled = true
+        item.Font = Enum.Font.GothamSemibold
+        item.Parent = staffList
+        
+        -- Add click handler
+        item.MouseButton1Click:Connect(function()
+            self:SelectStaff(staff)
+        end)
+        
+        return item
+    end
+    
+    -- Update staff list
+    self.UpdateStaffList = function(staffData)
+        -- Clear existing items
+        for _, child in pairs(staffList:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        
+        -- Add staff items
+        for _, staff in pairs(staffData) do
+            createStaffItem(staff)
+        end
+    end
+end
+
+function StaffManagementUI:InitializeStaffDetails()
+    -- Create details layout
+    local detailsLayout = Instance.new("UIGridLayout")
+    detailsLayout.CellSize = UDim2.new(1, -20, 0, 30)
+    detailsLayout.CellPadding = UDim2.new(0, 0, 0, 10)
+    detailsLayout.Parent = staffDetails
+    
+    -- Create detail labels
+    local labels = {
+        "Name",
+        "Type",
+        "Experience",
+        "Efficiency",
+        "Energy",
+        "Current Task"
+    }
+    
+    for _, label in ipairs(labels) do
+        local labelFrame = Instance.new("Frame")
+        labelFrame.Size = UDim2.new(1, 0, 0, 30)
+        labelFrame.BackgroundTransparency = 1
+        labelFrame.Parent = staffDetails
+        
+        local labelText = Instance.new("TextLabel")
+        labelText.Size = UDim2.new(0.4, 0, 1, 0)
+        labelText.Position = UDim2.new(0, 0, 0, 0)
+        labelText.BackgroundTransparency = 1
+        labelText.Text = label .. ":"
+        labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+        labelText.TextXAlignment = Enum.TextXAlignment.Left
+        labelText.TextScaled = true
+        labelText.Font = Enum.Font.GothamSemibold
+        labelText.Parent = labelFrame
+        
+        local valueText = Instance.new("TextLabel")
+        valueText.Name = "Value"
+        valueText.Size = UDim2.new(0.6, 0, 1, 0)
+        valueText.Position = UDim2.new(0.4, 0, 0, 0)
+        valueText.BackgroundTransparency = 1
+        valueText.Text = "-"
+        valueText.TextColor3 = Color3.fromRGB(255, 255, 255)
+        valueText.TextXAlignment = Enum.TextXAlignment.Left
+        valueText.TextScaled = true
+        valueText.Font = Enum.Font.GothamSemibold
+        valueText.Parent = labelFrame
+    end
+    
+    -- Create fire button
+    local fireButton = Instance.new("TextButton")
+    fireButton.Name = "FireButton"
+    fireButton.Size = UDim2.new(0.8, 0, 0, 40)
+    fireButton.Position = UDim2.new(0.1, 0, 0.9, 0)
+    fireButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    fireButton.BorderSizePixel = 0
+    fireButton.Text = "Fire Staff"
+    fireButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fireButton.TextScaled = true
+    fireButton.Font = Enum.Font.GothamBold
+    fireButton.Parent = staffDetails
+    
+    fireButton.MouseButton1Click:Connect(function()
+        if selectedStaff then
+            self:FireStaff(selectedStaff.id)
+        end
+    end)
+end
+
+function StaffManagementUI:InitializeHirePanel()
+    -- Create hire options
+    local hireOptions = Instance.new("ScrollingFrame")
+    hireOptions.Name = "HireOptions"
+    hireOptions.Size = UDim2.new(1, -20, 0.8, 0)
+    hireOptions.Position = UDim2.new(0, 10, 0, 10)
+    hireOptions.BackgroundTransparency = 1
+    hireOptions.ScrollBarThickness = 6
+    hireOptions.Parent = hirePanel
+    
+    -- Create options layout
+    local optionsLayout = Instance.new("UIListLayout")
+    optionsLayout.Padding = UDim.new(0, 10)
+    optionsLayout.Parent = hireOptions
+    
+    -- Create hire option buttons
+    for staffType, staffData in pairs(Constants.STAFF) do
+        local option = Instance.new("TextButton")
+        option.Name = staffType
+        option.Size = UDim2.new(1, 0, 0, 100)
+        option.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+        option.BorderSizePixel = 0
+        option.Text = ""
+        option.Parent = hireOptions
+        
+        -- Add staff info
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.4, 0)
+        nameLabel.Position = UDim2.new(0, 0, 0, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = staffData.name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextScaled = true
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.Parent = option
+        
+        local costLabel = Instance.new("TextLabel")
+        costLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        costLabel.Position = UDim2.new(0, 0, 0.4, 0)
+        costLabel.BackgroundTransparency = 1
+        costLabel.Text = "Cost: $" .. staffData.hireCost
+        costLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        costLabel.TextScaled = true
+        costLabel.Font = Enum.Font.GothamSemibold
+        costLabel.Parent = option
+        
+        local salaryLabel = Instance.new("TextLabel")
+        salaryLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        salaryLabel.Position = UDim2.new(0, 0, 0.7, 0)
+        salaryLabel.BackgroundTransparency = 1
+        salaryLabel.Text = "Salary: $" .. staffData.salary .. "/day"
+        salaryLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        salaryLabel.TextScaled = true
+        salaryLabel.Font = Enum.Font.GothamSemibold
+        salaryLabel.Parent = option
+        
+        -- Add click handler
+        option.MouseButton1Click:Connect(function()
+            self:HireStaff(staffType)
+        end)
+    end
+end
+
+function StaffManagementUI:Show()
+    screenGui.Enabled = true
+    
+    -- Animate in
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(screenGui.MainFrame, tweenInfo, {
+        Position = UDim2.new(0.1, 0, 0.1, 0),
+        Size = UDim2.new(0.8, 0, 0.8, 0)
+    })
+    tween:Play()
+end
+
+function StaffManagementUI:Hide()
+    -- Animate out
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    local tween = TweenService:Create(screenGui.MainFrame, tweenInfo, {
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 0, 0, 0)
+    })
+    tween:Play()
+    
+    task.delay(0.3, function()
+        screenGui.Enabled = false
+    end)
+end
+
+function StaffManagementUI:SelectStaff(staff)
+    selectedStaff = staff
+    
+    -- Update details panel
+    local details = staffDetails:GetChildren()
+    for _, detail in ipairs(details) do
+        if detail:IsA("Frame") then
+            local valueLabel = detail:FindFirstChild("Value")
+            if valueLabel then
+                local label = detail:FindFirstChild("TextLabel")
+                if label then
+                    if label.Text == "Name:" then
+                        valueLabel.Text = staff.name
+                    elseif label.Text == "Type:" then
+                        valueLabel.Text = staff.type
+                    elseif label.Text == "Experience:" then
+                        valueLabel.Text = string.format("%.1f", staff.experience)
+                    elseif label.Text == "Efficiency:" then
+                        valueLabel.Text = string.format("%.1f", staff.efficiency)
+                    elseif label.Text == "Energy:" then
+                        valueLabel.Text = string.format("%.0f%%", staff.energy)
+                    elseif label.Text == "Current Task:" then
+                        valueLabel.Text = staff.currentTask and staff.currentTask.type or "None"
+                    end
+                end
+            end
+        end
+    end
+end
+
+function StaffManagementUI:ShowHirePanel()
+    hirePanel.Visible = true
+    staffDetails.Visible = false
+end
+
+function StaffManagementUI:HireStaff(staffType)
+    -- Send hire request to server
+    local remote = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("HireStaff")
+    remote:FireServer(staffType)
+    
+    -- Hide hire panel
+    hirePanel.Visible = false
+    staffDetails.Visible = true
+end
+
+function StaffManagementUI:FireStaff(staffId)
+    -- Send fire request to server
+    local remote = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("FireStaff")
+    remote:FireServer(staffId)
+    
+    -- Clear selection
+    selectedStaff = nil
+end
+
+function StaffManagementUI:UpdateStaffList(staffData)
+    self.UpdateStaffList(staffData)
+end
+
+return StaffManagementUI ]]></string>
+            </Properties>
+          </Item>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+</roblox>
