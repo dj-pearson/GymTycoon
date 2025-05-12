@@ -33,6 +33,126 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local DataStoreService = game:GetService("DataStoreService")
 
+-- Require UI Modules from the UI directory
+local function requireUIModule(name)
+    local UIDirectory = script.Parent:FindFirstChild("UI")
+    if UIDirectory and UIDirectory:FindFirstChild(name) then
+        local success, result = pcall(function()
+            return require(UIDirectory:FindFirstChild(name))
+        end)
+        if success and result then
+            return result
+        end
+    end
+    return {}
+end
+
+-- Load UI Modules
+local MainUI = requireUIModule("MainUI")
+local PerformanceUI = requireUIModule("PerformanceUI")
+local CacheViewerUI = requireUIModule("CacheViewerUI")
+local LockStatusUI = requireUIModule("LockStatusUI")
+local KeyContentUI = requireUIModule("KeyContentUI")
+local SchemaBuilderIntegration = requireUIModule("SchemaBuilderIntegration")
+
+-- Use safe require for all module dependencies
+local SchemaManager = safeRequire("SchemaManager")
+local SessionManager = safeRequire("SessionManager")
+local PerformanceMonitor = safeRequire("PerformanceMonitor")
+local CacheManager = safeRequire("CacheManager")
+local BulkOperationsManager = safeRequire("BulkOperationsManager")
+local BulkOperationsUI = safeRequire("BulkOperationsUI")
+local SchemaBuilderUI = safeRequire("SchemaBuilderUI")
+local SchemaValidator = safeRequire("SchemaValidator")
+local SchemaEditor = safeRequire("SchemaEditor")
+local SchemaVersionViewer = safeRequire("SchemaVersionViewer")
+local generateSchemaFromData = safeRequire("generateSchemaFromData")
+local SchemaVisualIndicator = safeRequire("SchemaVisualIndicator")
+local SessionManagementUI = safeRequire("SessionManagementUI")
+local DataMigrationUI = safeRequire("DataMigrationUI")
+local MultiServerCoordinationUI = safeRequire("MultiServerCoordinationUI")
+local PerformanceAnalyzerUI = safeRequire("PerformanceAnalyzerUI")
+local CachingSystemUI = safeRequire("CachingSystemUI")
+local LoadTestingUI = safeRequire("LoadTestingUI")
+local CodeGeneratorUI = safeRequire("CodeGeneratorUI")
+local APIIntegrationUI = safeRequire("APIIntegrationUI")
+local AccessControlUI = safeRequire("AccessControlUI")
+local CachingSystemIntegration = safeRequire("CachingSystemIntegration")
+local LoadTestingIntegration = safeRequire("LoadTestingIntegration")
+local CodeGeneratorIntegration = safeRequire("CodeGeneratorIntegration")
+local APIIntegrationIntegration = safeRequire("APIIntegrationIntegration")
+local AccessControlIntegration = safeRequire("AccessControlIntegration")
+local MultiServerCoordinationIntegration = safeRequire("MultiServerCoordinationIntegration")
+local PerformanceAnalyzerIntegration = safeRequire("PerformanceAnalyzerIntegration")
+
+local DataExplorer = {
+    performanceDataUI = {},
+    sessionId = HttpService:GenerateGUID(),
+    lockStatusUI = {},
+    sessionManagementUI = nil,
+    dataMigrationContainer = nil,
+    coordinationContainer = nil,
+    performanceAnalyzerContainer = nil,
+    cachingSystemContainer = nil,
+    mainFrame = nil,
+    loadTestingContainer = nil,
+    codeGeneratorContainer = nil,
+    apiIntegrationContainer = nil,
+    accessControlContainer = nil,
+    cacheViewerPane = nil
+}
+
+-- Create the main UI frame (delegated to MainUI module)
+function DataExplorer.createMainUI()
+    return MainUI.createMainUI(DataExplorer)
+end
+
+-- Update performance UI (delegated to PerformanceUI module)
+function DataExplorer.updatePerformanceDataUI()
+    PerformanceUI.updatePerformanceDataUI(DataExplorer, CacheManager, PerformanceMonitor)
+end
+
+-- Update lock status UI (delegated to LockStatusUI module)
+function DataExplorer.updateLockStatusUI()
+    LockStatusUI.updateLockStatusUI(DataExplorer, SessionManager)
+end
+
+-- Update cache viewer UI (delegated to CacheViewerUI module)
+function DataExplorer.updateCacheViewerUI()
+    CacheViewerUI.updateCacheViewerUI(DataExplorer, CacheManager)
+end
+
+-- Initialize bulk operations UI (delegated to MainUI module)
+function DataExplorer.initBulkOperationsUI()
+    MainUI.initBulkOperationsUI(DataExplorer, BulkOperationsUI)
+end
+
+-- Initialize schema builder (delegated to SchemaBuilderIntegration module)
+function DataExplorer.initSchemaBuilder()
+    SchemaBuilderIntegration.initSchemaBuilder(DataExplorer, SchemaBuilderUI)
+end
+
+-- Display key content (delegated to KeyContentUI module)
+function DataExplorer.displayKeyContent(dataStoreName, keyName)
+    KeyContentUI.displayKeyContent(DataExplorer, dataStoreName, keyName, SchemaManager, SessionManager, CacheManager, PerformanceMonitor)
+end
+
+-- Set up event connections for UI updates
+RunService.Heartbeat:Connect(function()
+    DataExplorer.updatePerformanceDataUI()
+    DataExplorer.updateCacheViewerUI()
+    DataExplorer.updateLockStatusUI()
+end)
+
+return DataExplorer
+
+local MainUI = requireUIModule("MainUI")
+local PerformanceUI = requireUIModule("PerformanceUI")
+local CacheViewerUI = requireUIModule("CacheViewerUI")
+local LockStatusUI = requireUIModule("LockStatusUI")
+local KeyContentUI = requireUIModule("KeyContentUI")
+local SchemaBuilderIntegration = requireUIModule("SchemaBuilderIntegration")
+
 -- Use safe require for all module dependencies
 local SchemaManager = safeRequire("SchemaManager")
 local SessionManager = safeRequire("SessionManager")
